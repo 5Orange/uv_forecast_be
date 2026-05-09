@@ -1,0 +1,35 @@
+name: uv-research
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pandas
+  - numpy
+  - requests
+  - pvlib
+  - python-dotenv
+  - tqdm
+  - scikit-learn
+  - xgboost
+  - lightgbm
+  - pytorch
+  - matplotlib
+  - seaborn
+  - jupyter
+  - notebook
+  - ipykernel
+  - scipy
+  - optuna
+  - joblib
+  - mlflow
+  - pip
+  - pip:
+    - streamlit
+    - plotly
+    - shap
+    - catboost
+    - prophet
+    - databricks-sdk
+    - folium
+    - streamlit-folium
