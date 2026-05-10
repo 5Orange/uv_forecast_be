@@ -74,15 +74,17 @@ class SequenceModelWrapper:
         return predictions
 
 def load_best_params(model_name):
+    print(f"\nLoading best parameters for {model_name}")
     model_dir = Path(__file__).parent.parent.parent / 'models' / 'metadata'
     params_file = model_dir / f'best_params_{model_name}.json'
 
     if not params_file.exists():
-        print(f"waring: {params_file} not found")
+        print(f"warning: {params_file} not found")
         return {}
-
     with open(str(params_file), 'r') as f:
-        return json.load(f)
+        data = json.load(f)
+        print("\nfound best params:", data)
+        return data
 
 def _train_traditional_ml(model_class, param_key, display_name, X_train, y_train, X_val, y_val, extra_params=None):
     print(f"\nTraining {display_name}")

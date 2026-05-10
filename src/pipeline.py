@@ -10,14 +10,6 @@ from src.utils.key_pool import AllKeyExhaustedError
 
 _COLLECTION_ERRORS = (AllKeyExhaustedError, RuntimeError)
 
-from datetime import date
-
-def days_from_now_to() -> int:
-    target_date = date.fromisoformat('2014-12-20')  # 'YYYY-MM-DD'
-    today = date.today()
-    delta = target_date - today
-    return delta.days
-
 def collect_historical():
     print(f"Step 1a: collecting historical data (OPEN_METEO) [{HISTORICAL_START} - {HISTORICAL_END}]")
     try:
@@ -78,7 +70,7 @@ def crawl_historical_openuv(ouv: OpenUVCollector):
     print("Step 1e: OpenUV backward historical crawl")
     if not ouv.available:
         return []
-    n = ouv.collect_historical(max_days_back=days_from_now_to())
+    n = ouv.collect_historical(start_date=HISTORICAL_START, end_date=HISTORICAL_END)
     print(f"  OpenUV hist: {n} new date-location pairs this session")
     return []
 
@@ -87,7 +79,7 @@ def crawl_historical_wb(wb: WeatherBitCollector):
     print("Step 1f: WeatherBit backward historical crawl")
     if not wb.available:
         return []
-    n = wb.collect_historical(max_days_back=days_from_now_to())
+    n = wb.collect_historical(start_date=HISTORICAL_START, end_date=HISTORICAL_END)
     print(f"  WB hist: {n} new date-location pairs this session")
     return []
 

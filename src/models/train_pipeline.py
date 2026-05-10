@@ -152,7 +152,8 @@ def main():
 
     print("MLFlow Configuration")
     print("=" * 70)
-    mlflow_enabled = setup_mlflow()
+    # mlflow_enabled = setup_mlflow()
+    mlflow_enabled = False
     if mlflow_enabled:
         print("MlFlow tracking to databricks enabled")
     else:

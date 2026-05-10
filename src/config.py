@@ -1,7 +1,10 @@
 import os
-from datetime import date, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import datetime
+
+now = datetime.now()
+target_date = datetime(2026, 5, 15)
 
 load_dotenv()
 
@@ -24,7 +27,7 @@ LOCATIONS = {
 
 TIMEZONE = "Asia/Ho_Chi_Minh"
 HISTORICAL_START = "2015-01-01"
-HISTORICAL_END = (date.today() - timedelta(days=5)).isoformat()
+HISTORICAL_END = min(now, target_date).strftime("%Y-%m-%d")
 
 OM_HISTORICAL_HOURLY = [
     'temperature_2m', 'relative_humidity_2m', 'apparent_temperature',

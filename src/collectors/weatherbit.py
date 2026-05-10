@@ -104,9 +104,9 @@ class WeatherBitCollector:
         print(f" WeatherBit: all {total} locations collected -> {out_path}")
         return pd.read_csv(out_path) if out_path.exists() else pd.DataFrame()
 
-    def collect_historical(self, max_days_back: int = 730,
+    def collect_historical(self, start_date: str, end_date: str,
                            locations: dict | None = None) -> int:
-        """Crawl backward from yesterday. Returns count of new date-location pairs."""
+        """Crawl within a specific date range. Returns count of new date-location pairs."""
         if not self.available:
             return 0
 
@@ -114,9 +114,13 @@ class WeatherBitCollector:
         ckpt = Checkpoint("weatherbit_historical")
         out_path = RAW_WB_DIR / 'historical.csv'
 
+        s = date.fromisoformat(start_date)
+        e = date.fromisoformat(end_date)
+        delta = (e - s).days
+
         all_keys = [
-            f"{(date.today() - timedelta(days=d)).isoformat()}|{lid}"
-            for d in range(1, max_days_back + 1)
+            f"{(s + timedelta(days=d)).isoformat()}|{lid}"
+            for d in range(delta + 1)
             for lid in locations
         ]
 
