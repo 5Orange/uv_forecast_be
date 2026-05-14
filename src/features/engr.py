@@ -335,7 +335,6 @@ class FeatureEngineer:
 
         altitude = self.df.get('altitude_m', pd.Series(0, index=self.df.index))
         self.df['altitude_solar_interaction'] = altitude * cos_z / 1000
-        self.df['is_highland'] = (altitude > 500).astype(int)
 
         if 'ozone' in self.df.columns:
             ozone_q25 = self.df['ozone'].quantile(0.25)

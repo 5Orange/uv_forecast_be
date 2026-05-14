@@ -112,7 +112,7 @@ CORE_19_FEATURES = [
 
 CORE_14_FEATURES = CORE_19_FEATURES[:14]
 
-FINAL_23_FEATURES = [
+FINAL_22_FEATURES = [
     "cos_solar_zenith",
     "doy_sin", 
     "temperature_2m",      
@@ -131,14 +131,13 @@ FINAL_23_FEATURES = [
     "cloud_cover_ema",
     "ozone_ema",
     "altitude_solar_interaction",
-    "is_highland",
     "ozone_depletion_risk",
     "air_quality_combined",
     "is_raining",
     "cloud_cover_change_1h"
 ]
 
-FINAL_FEATURES = FINAL_23_FEATURES
+FINAL_FEATURES = FINAL_22_FEATURES
 
 # Features that cause data leakage (observed UV energy / UV memory)
 LEAKAGE_COLS = [
