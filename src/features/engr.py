@@ -352,6 +352,7 @@ class FeatureEngineer:
         self.add_enhanced_solar()
         self.add_uv_lag_rolling()
         self.add_atmospheric()
+        self.add_location()
         self.add_advanced_features()
         self.add_trend_features()
         self.add_enhanced_atmospheric()
@@ -359,8 +360,7 @@ class FeatureEngineer:
         self.add_targets()
         self.add_tourism_features()
         self.add_health_safety_features()
-        self.add_location()
-        
+
         daytime = self.df[self.df.get('is_day', pd.Series(1, index=self.df.index)) == 1].copy()
 
         if 'uv_source' in daytime.columns:
