@@ -5,7 +5,7 @@ from src.config import (
     FEATURES_DIR, FINAL_FEATURES,
     LOCATIONS, PROCESSED_DIR,
 )
-from src.recommendation.safe_time_policy import SKIN_TYPE_MULTIPLIER
+from src.recommendation.safe_time_policy import SKIN_TYPE_MULTIPLIER, MED_VALUES_JM2
 
 class FeatureEngineer:
 
@@ -124,7 +124,10 @@ class FeatureEngineer:
             df.drop(columns=['_ozone_month', '_ozone_monthly_mean'], inplace=True)
             self.df = df
         if 'aerosol_optical_depth' in self.df.columns and self.df['aerosol_optical_depth'].notna().any():
-            self.df['aerosol_uv_attenuation'] = 1 - self.df['aerosol_optical_depth'].fillna(0).clip(0, 1)
+            # Beer-Lambert Law: T = exp(-τ)
+            # Source: Bohren & Huffman (1983), doi:10.1002/9783527618156
+            # Linear approx (1-AOD) has >10% error at AOD>0.3
+            self.df['aerosol_uv_attenuation'] = np.exp(-self.df['aerosol_optical_depth'].fillna(0).clip(0, 3))
         temp = self.df.get('temperature_2m', pd.Series(np.nan, index = self.df.index))
         rh = self.df.get('relative_humidity_2m', pd.Series(np.nan, index = self.df.index))
         self.df['humidity_temp_index'] = temp * rh / 100
@@ -250,17 +253,22 @@ class FeatureEngineer:
                 labels=['low', 'moderate', 'high', 'very_high', 'extreme']
             )
             
-            uv_factor = np.maximum(1.0, self.df['uv_index'])
+            uv_factor = np.maximum(0.01, self.df['uv_index'])
             for skin_type in [1, 2, 3, 4, 5, 6]:
-                multiplier = SKIN_TYPE_MULTIPLIER[skin_type]
+                med_value = MED_VALUES_JM2[skin_type]
                 api_col = f'safe_exposure_st{skin_type}'
                 est_col = f'estimated_safe_st{skin_type}'
                 if api_col in self.df.columns and self.df[api_col].notna().any():
                     self.df[est_col] = self.df[api_col]
                     missing = self.df[est_col].isna()
-                    self.df.loc[missing, est_col] = (200.0 * multiplier) / (3.0 * uv_factor.loc[missing])
+                    # WHO/CIE formula: t = MED / (UV × 1.5)
+                    # Source: WHO (2002), 1 UVI = 0.025 W/m² = 1.5 J/(m²·min)
+                    self.df.loc[missing, est_col] = np.minimum(
+                        480.0, med_value / (uv_factor.loc[missing] * 1.5)
+                    )
                 else:
-                    self.df[est_col] = (200.0 * multiplier) / (3.0 * uv_factor)
+                    # WHO/CIE formula: t = MED / (UV × 1.5)
+                    self.df[est_col] = np.minimum(480.0, med_value / (uv_factor * 1.5))
 
         if 'heat_index' in self.df.columns:
             self.df['heat_warning'] = (self.df['heat_index'] > 32).astype(int)
@@ -293,7 +301,10 @@ class FeatureEngineer:
         self.df['uv_category'] = pd.cut(uv, bins=[-0.1, 2, 5, 7, 10, float('inf')], labels=[0, 1, 2, 3, 4]).astype("Int64")
         self.df['uv_category_name'] = pd.cut(uv, bins=[-0.1, 2, 5, 7, 10, float('inf')], labels=['low', 'moderate', 'high', 'very_high', 'extreme'])
         temp = self.df.get('temperature_2m', pd.Series(np.nan, index = self.df.index))
-        self.df['comfort_temp_score'] = (1- np.minimum(np.abs(temp - 27) / 10, 1.0)).clip(0, 1)
+        # Thermal comfort score: optimum at 26°C (UTCI no-stress upper boundary)
+        # Source: Jendritzky et al. (2012), doi:10.1007/s00484-011-0513-7
+        # Range ±12°C maps to UTCI moderate-to-strong heat/cold stress
+        self.df['comfort_temp_score'] = (1- np.minimum(np.abs(temp - 26) / 12, 1.0)).clip(0, 1)
         uv_penalty = (uv.fillna(0) / 11).clip(0, 1)
         rain_penalty = self.df.get('is_raining', pd.Series(0, index = self.df.index))
         self.df['outdoor_suitability'] = ((1 - uv_penalty) * (1 - rain_penalty) * self.df['comfort_temp_score']).clip(0, 1)
@@ -318,7 +329,10 @@ class FeatureEngineer:
         self.df['cos_zenith_squared'] = cos_z ** 2
 
         cc = self.df.get('cloud_cover', pd.Series(50, index=self.df.index)).fillna(50)
-        self.df['cloud_attenuation_exp'] = np.exp(-cc / 50)
+        # Kasten & Czeplak (1980) Cloud Modification Factor
+        # CMF = 1 - 0.75 * (CC/100)^3.4
+        # Source: doi:10.1016/0038-092X(80)90391-6
+        self.df['cloud_attenuation_exp'] = (1 - 0.75 * np.power(cc / 100.0, 3.4)).clip(0.05, 1.0)
 
         temp = self.df.get('temperature_2m', pd.Series(np.nan, index=self.df.index))
         rh = self.df.get('relative_humidity_2m', pd.Series(np.nan, index=self.df.index))

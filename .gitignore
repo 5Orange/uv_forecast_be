@@ -209,6 +209,7 @@ marimo/_lsp/
 __marimo__/
 /models/
 /.vscode/
-/.agent/
+/.agents/
 **/catboost_info/
 /data/
+/.agent/
