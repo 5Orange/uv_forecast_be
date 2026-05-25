@@ -14,7 +14,7 @@ def run_command(cmd, description):
 
 def main():
     steps = [
-        # ("python -m src.pipeline", "Feature regeneration"),
+        ("python -m src.pipeline", "Feature regeneration"),
         # ("python -m src.models.run_tuning", "Hyperparameter Tuning"),
         ("python -m src.models.train_pipeline", "Model training and evaluation"),
     ]
