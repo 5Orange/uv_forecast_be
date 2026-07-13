@@ -17,7 +17,7 @@ import joblib
 from pathlib import Path
 import gc
 
-from src.models.deep_learning_models import UVIndexLSTM, UVIndexGRU, UVIndexBiLSTM, CNNLSTM, AttentionLSTM
+from src.models.deep_learning_models import UVIndexLSTM, UVIndexGRU, UVIndexBiLSTM, CNNLSTM, AttentionLSTM, DLinear, TimesNet
 from src.models.sequence_utils import create_sequences_per_location
 
 class SequenceModelWrapper:
@@ -161,6 +161,16 @@ def _train_sequence_model(model_class, model_name, df_train, df_val, feature_col
         criterion = nn.MSELoss()
         patience_val = 8
         scheduler_patience = 3
+    elif model_name == 'DLinear':
+        model = model_class(X_seq_train.shape[2], seq_len=48, ma_window=params['ma_window']).to(device)
+        criterion = nn.MSELoss()
+        patience_val = 10
+        scheduler_patience = 4
+    elif model_name == 'TimesNet':
+        model = model_class(X_seq_train.shape[2], seq_len=48, top_k=params['top_k'], d_model=params['d_model'], num_kernels=params['num_kernels']).to(device)
+        criterion = nn.MSELoss()
+        patience_val = 8
+        scheduler_patience = 3
     else:
         model = model_class(X_seq_train.shape[2], params['hidden_dim']).to(device)
         criterion = nn.MSELoss()
@@ -293,6 +303,12 @@ def train_cnn_lstm(df_train, df_val, feature_cols):
 
 def train_attention_lstm(df_train, df_val, feature_cols):
     return _train_sequence_model(AttentionLSTM, 'Attention-LSTM', df_train, df_val, feature_cols, max_epochs=40, patience=8)
+
+def train_dlinear(df_train, df_val, feature_cols):
+    return _train_sequence_model(DLinear, 'DLinear', df_train, df_val, feature_cols, max_epochs=60, patience=10)
+
+def train_timesnet(df_train, df_val, feature_cols):
+    return _train_sequence_model(TimesNet, 'TimesNet', df_train, df_val, feature_cols, max_epochs=40, patience=8)
 
 class ProphetLGBWrapper:
     def __init__(self, prophet_models, lgb_models, scalers, feature_cols):
@@ -472,6 +488,14 @@ def train_all_models(X_train, y_train, X_val, y_val, df_train=None, df_val=None,
 
         models['attention_lstm'] = train_attention_lstm(df_train, df_val, feature_cols)
         joblib.dump(models['attention_lstm'], models_dir / 'attention_lstm_optimized.joblib')
+        gc.collect()
+
+        models['dlinear'] = train_dlinear(df_train, df_val, feature_cols)
+        joblib.dump(models['dlinear'], models_dir / 'dlinear_optimized.joblib')
+        gc.collect()
+
+        models['timesnet'] = train_timesnet(df_train, df_val, feature_cols)
+        joblib.dump(models['timesnet'], models_dir / 'timesnet_optimized.joblib')
         gc.collect()
 
     else:

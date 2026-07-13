@@ -33,7 +33,7 @@ def time_limit(seconds):
         signal.alarm(0)
 
 
-from src.models.deep_learning_models import UVIndexLSTM, UVIndexGRU, UVIndexBiLSTM, CNNLSTM, AttentionLSTM
+from src.models.deep_learning_models import UVIndexLSTM, UVIndexGRU, UVIndexBiLSTM, CNNLSTM, AttentionLSTM, DLinear, TimesNet
 from src.models.sequence_utils import create_sequences_per_location
 
 def objective_rf(trial, X_train, y_train):
@@ -515,6 +515,23 @@ def objective_attention_lstm(trial, df_train, feature_cols):
     }
     return _optimize_sequence_model(trial, df_train, feature_cols, AttentionLSTM, params)
 
+def objective_dlinear(trial, df_train, feature_cols):
+    ma_window = trial.suggest_int('ma_window', 5, 25, step=2) # must be odd
+    params = {
+        'ma_window': ma_window,
+        'lr': trial.suggest_float('lr', 1e-4, 5e-3, log=True)
+    }
+    return _optimize_sequence_model(trial, df_train, feature_cols, DLinear, params)
+
+def objective_timesnet(trial, df_train, feature_cols):
+    params = {
+        'top_k': trial.suggest_int('top_k', 1, 5),
+        'd_model': trial.suggest_int('d_model', 16, 128, step=16),
+        'num_kernels': trial.suggest_int('num_kernels', 1, 4),
+        'lr': trial.suggest_float('lr', 1e-4, 5e-3, log=True)
+    }
+    return _optimize_sequence_model(trial, df_train, feature_cols, TimesNet, params)
+
 def _optimize_hybrid_prophet_lgb(trial, df_train, feature_cols, params):
     scores = []
     locations = df_train['location_id'].unique()
@@ -625,6 +642,8 @@ def tune_model(model_name, X_train=None, y_train=None, df_train=None, feature_co
         'bilstm': objective_bilstm,
         'cnn_lstm': objective_cnn_lstm,
         'attention_lstm': objective_attention_lstm,
+        'dlinear': objective_dlinear,
+        'timesnet': objective_timesnet,
         'prophet_lgb': objective_prophet_lgb,
     }
 
@@ -632,7 +651,7 @@ def tune_model(model_name, X_train=None, y_train=None, df_train=None, feature_co
         raise ValueError(f"unknown model: {model_name}")
 
     needs_dataframe = model_name in ['lstm', 'gru', 'bilstm',
-                                     'cnn_lstm', 'attention_lstm', 'prophet_lgb']
+                                     'cnn_lstm', 'attention_lstm', 'dlinear', 'timesnet', 'prophet_lgb']
 
     if needs_dataframe:
         if df_train is None or feature_cols is None:

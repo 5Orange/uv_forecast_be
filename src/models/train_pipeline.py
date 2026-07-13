@@ -145,6 +145,12 @@ def evaluate_prophet_per_location(wrapper, df_split):
          'location_breakdown': locations_metrics
      }
 
+def predict_with_context(model, context_df, target_df, seq_len=48):
+    tail = context_df.groupby('location_id').tail(seq_len - 1)
+    df_with_ctx = pd.concat([tail, target_df], ignore_index=False)
+    preds = model.predict(df_with_ctx)
+    return preds[len(tail):]
+
 def main():
     print("\n" + "=" * 70)
     print("UV FORECASTING: TRAINING PIPELINE TO ACHIEVE R2 ")
@@ -190,6 +196,8 @@ def main():
         'bilstm': base_models['bilstm'],
         'cnn_lstm': base_models['cnn_lstm'],
         'attention_lstm': base_models['attention_lstm'],
+        'dlinear': base_models['dlinear'],
+        'timesnet': base_models['timesnet'],
         'prophet_lgb': base_models['prophet_lgb'],
     }
 
@@ -222,8 +230,15 @@ def main():
                     prophet_per_location_data[model_name] = {}
                 prophet_per_location_data[model_name][split_name] = eval_result['location_breakdown']
             elif model_name in ['lstm', 'gru', 'bilstm',
-                              'cnn_lstm', 'attention_lstm']:
-                y_pred = model.predict(df_split)
+                              'cnn_lstm', 'attention_lstm', 'dlinear', 'timesnet']:
+                # Sequence models need context from previous split
+                context_map = {'train': train_df, 'val': train_df, 'test': val_df}
+                context_df = context_map[split_name]
+                
+                if split_name == 'train':
+                    y_pred = model.predict(df_split)
+                else:
+                    y_pred = predict_with_context(model, context_df, df_split)
                 from sklearn.metrics import mean_squared_error, mean_absolute_error
                 metrics = {
                     'model': model_name,
@@ -291,8 +306,11 @@ def main():
     best_model_name = best_test['model']
     best_model = all_models[best_model_name]
     if best_model_name in ['lstm', 'gru', 'bilstm',
-                              'cnn_lstm', 'attention_lstm', 'prophet_lgb']:
-        y_pred_best = best_model.predict(test_df)
+                              'cnn_lstm', 'attention_lstm', 'dlinear', 'timesnet', 'prophet_lgb']:
+        if best_model_name == 'prophet_lgb':
+            y_pred_best = best_model.predict(test_df)
+        else:
+            y_pred_best = predict_with_context(best_model, val_df, test_df)
     else:
         y_pred_best = best_model.predict(X_test)
 
@@ -319,6 +337,13 @@ def main():
     print(f"\nBest Model: {best_model_name}")
     print(f"Best R2: {best_r2}\n")
     print(f"Best RMSE: {best_rmse}")
+    
+    # Auto-copy to UI
+    import shutil
+    ui_path = PROJECT_ROOT.parent / 'uv_forecast_ui' / 'results' / 'optimized' / 'consolidated_results.csv'
+    if ui_path.parent.exists():
+        shutil.copy(results_dir / 'consolidated_results.csv', ui_path)
+        print(f"\nCopied consolidated_results.csv to UI: {ui_path}")
 
 
 if __name__ == "__main__":
